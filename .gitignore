@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables
+.env
+
+# Uploads and temporary images
+static/uploads/*
+static/results/*
+!static/uploads/.gitkeep
+!static/results/.gitkeep
+temp_ela.jpg
+gri_sonuc.jpg

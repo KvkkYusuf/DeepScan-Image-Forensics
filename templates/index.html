@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepScan | AI Görüntü Analizi</title>
+    <!-- Tailwind CSS (Gelişmiş Responsive Tasarım İçin) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Modern Tipografi) -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome (İkonlar) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#f0fdfa', 100: '#ccfbf1', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488', 900: '#134e4a' },
+                        dark: { 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #020617; color: #f8fafc; overflow-x: hidden; }
+        .glass-panel { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .gradient-text { background: linear-gradient(135deg, #2dd4bf 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hover-scale { transition: transform 0.2s ease-in-out; }
+        .hover-scale:hover { transform: scale(1.02); }
+        
+        #drop-zone { transition: all 0.3s ease; }
+        #drop-zone.drag-over { border-color: #2dd4bf; background: rgba(45, 212, 191, 0.1); }
+        
+        .pulse-anim { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+        .image-container { position: relative; overflow: hidden; border-radius: 0.75rem; }
+        .image-container img { transition: transform 0.5s ease; }
+        .image-container:hover img { transform: scale(1.05); }
+        
+        /* Özel Kaydırma Çubuğu */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- Üst Menü (Navbar) -->
+    <nav class="glass-panel sticky top-0 z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-blue-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-brand-500/30">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight">Deep<span class="text-brand-400">Scan</span></h1>
+            </div>
+            <div class="hidden md:flex gap-6 text-sm font-medium text-slate-300">
+                <a href="#" class="hover:text-brand-400 transition-colors">Nasıl Çalışır?</a>
+                <a href="#" class="hover:text-brand-400 transition-colors">Teknoloji</a>
+                <a href="#" class="hover:text-brand-400 transition-colors">Hakkımızda</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Ana İçerik -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12">
+        
+        <!-- Karşılama Alanı (Hero) -->
+        <div class="text-center max-w-3xl mx-auto mb-16">
+            <h2 class="text-4xl md:text-5xl font-extrabold mb-6 leading-tight">
+                Görsellerin Gerçekliğini <br> <span class="gradient-text">Yapay Zeka İle Keşfedin</span>
+            </h2>
+            <p class="text-lg text-slate-400 mb-8">
+                Gelişmiş Error Level Analysis (ELA) ve derin öğrenme algoritmaları kullanarak fotoğraflardaki 
+                gizli manipülasyonları, Photoshop müdahalelerini ve sahte izleri saniyeler içinde tespit edin.
+            </p>
+        </div>
+
+        <!-- Dashboard Izgarası -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Sol Sütun: Dosya Yükleme & Kontrol -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <div class="glass-panel rounded-2xl p-6 shadow-xl">
+                    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-brand-400"></i> Dosya Yükle
+                    </h3>
+                    
+                    <form id="uploadForm">
+                        <div id="drop-zone" class="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-brand-400 transition-colors" onclick="document.getElementById('fileInput').click()">
+                            <i class="fa-regular fa-image text-4xl text-slate-400 mb-4 drop-icon"></i>
+                            <p class="text-slate-300 font-medium mb-1">Tıklayın veya Sürükleyin</p>
+                            <p class="text-slate-500 text-sm">PNG, JPG, JPEG (Maks 10MB)</p>
+                            <input type="file" id="fileInput" name="image" accept="image/*" class="hidden">
+                        </div>
+                        
+                        <!-- Yüklenen Resim Önizlemesi -->
+                        <div id="preview-container" class="hidden mt-4 relative">
+                            <img id="image-preview" class="w-full h-48 object-cover rounded-lg border border-slate-700" src="" alt="Önizleme">
+                            <button type="button" id="remove-btn" class="absolute top-2 right-2 bg-slate-900/80 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-500 transition-colors">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <!-- Onay Kutusu (Başlangıçta Gizli) -->
+                        <div id="confirm-box" class="hidden mt-4 bg-slate-800/50 p-3 rounded-lg border border-slate-700 flex items-start gap-3">
+                            <input type="checkbox" id="confirm-check" class="mt-1 w-4 h-4 text-brand-500 bg-slate-900 border-slate-600 rounded focus:ring-brand-500 cursor-pointer">
+                            <label for="confirm-check" class="text-sm text-slate-300 cursor-pointer">Bu görüntünün analiz edilmesine onay veriyorum.</label>
+                        </div>
+
+                        <button type="submit" id="analyzeBtn" disabled class="hidden w-full mt-4 bg-gradient-to-r from-brand-500 to-blue-600 hover:from-brand-400 hover:to-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-brand-500/25 transition-all opacity-50 cursor-not-allowed">
+                            <i class="fa-solid fa-magnifying-glass mr-2"></i> Onayla ve Analizi Başlat
+                        </button>
+                    </form>
+                </div>
+
+                <!-- İşlem Devam Ediyor Animasyonu -->
+                <div id="processing-state" class="hidden glass-panel rounded-2xl p-6 shadow-xl text-center">
+                    <div class="inline-block relative w-16 h-16 mb-4">
+                        <div class="absolute top-0 left-0 w-full h-full border-4 border-slate-700 rounded-full"></div>
+                        <div class="absolute top-0 left-0 w-full h-full border-4 border-brand-400 rounded-full border-t-transparent animate-spin"></div>
+                        <i class="fa-solid fa-microchip absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-brand-400"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-200 mb-2">Yapay Zeka Çalışıyor</h3>
+                    <div class="w-full bg-slate-800 rounded-full h-2 mt-4 overflow-hidden">
+                        <div class="bg-gradient-to-r from-brand-400 to-blue-500 h-2 rounded-full w-2/3 pulse-anim"></div>
+                    </div>
+                    <p class="text-sm text-brand-400 mt-3 font-medium" id="process-text">Piksel verileri inceleniyor...</p>
+                </div>
+
+            </div>
+
+            <!-- Sağ Sütun: Sonuçlar (Responsive tasarıma göre alta düşer) -->
+            <div class="lg:col-span-2">
+                
+                <!-- Analiz Öncesi Boş Durum -->
+                <div id="empty-state" class="glass-panel rounded-2xl p-12 h-full flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-700">
+                    <i class="fa-solid fa-chart-pie text-6xl mb-6 opacity-30"></i>
+                    <h3 class="text-2xl font-medium mb-2 text-slate-400">Analiz Bekleniyor</h3>
+                    <p class="text-center max-w-md text-slate-500">Sol taraftaki panelden bir görsel yükleyerek arka plandaki yapay zeka motorumuzu tetikleyin. Tüm algoritmik sonuçlar burada görüntülenecektir.</p>
+                </div>
+
+                <!-- Gerçek Sonuçlar (Varsayılan olarak gizli) -->
+                <div id="results-state" class="hidden space-y-6">
+                    
+                    <!-- Üst Metrik Kartı -->
+                    <div class="glass-panel rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-48 h-48 bg-brand-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                        
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+                            
+                            <!-- Durum (Gerçek/Sahte) -->
+                            <div class="flex-1 text-center md:text-left w-full">
+                                <p class="text-slate-400 text-sm uppercase tracking-wider font-semibold mb-2">Yapay Zeka Kararı</p>
+                                <div id="final-status" class="flex justify-center md:justify-start items-center gap-3 px-5 py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 w-full">
+                                    <!-- Dinamik olarak doldurulacak -->
+                                </div>
+                            </div>
+                            
+                            <div class="flex w-full md:w-auto gap-6 justify-center md:justify-end">
+                                <!-- Güven Skoru -->
+                                <div class="text-center border-r border-slate-700 pr-6">
+                                    <p class="text-slate-400 text-sm font-medium mb-1">Güven Skoru</p>
+                                    <div class="flex justify-center items-baseline gap-1">
+                                        <span id="conf-score" class="text-4xl font-extrabold text-white">%0</span>
+                                    </div>
+                                </div>
+
+                                <!-- ELA Skoru -->
+                                <div class="text-center">
+                                    <p class="text-slate-400 text-sm font-medium mb-1">Sapma (ELA)</p>
+                                    <div class="flex justify-center items-baseline gap-1">
+                                        <span id="ela-score" class="text-2xl font-bold text-white">0.0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Çıktı Görselleri -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div class="glass-panel rounded-2xl p-5 hover-scale flex flex-col">
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="font-semibold text-slate-200"><i class="fa-regular fa-image mr-2 text-blue-400"></i>Orijinal Kaynak</h4>
+                            </div>
+                            <div class="image-container bg-slate-900/50 rounded-xl flex-grow flex items-center justify-center p-2">
+                                <img id="res-original" src="" class="max-h-64 object-contain rounded-lg shadow-lg">
+                            </div>
+                        </div>
+
+                        <div class="glass-panel rounded-2xl p-5 hover-scale flex flex-col">
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="font-semibold text-slate-200"><i class="fa-solid fa-fire-flame-curved mr-2 text-orange-500"></i>ELA Isı Haritası</h4>
+                                <span class="text-xs bg-brand-500/20 text-brand-400 px-2 py-1 rounded font-medium border border-brand-500/30">Önemli Çıktı</span>
+                            </div>
+                            <div class="image-container bg-slate-900/50 rounded-xl flex-grow flex items-center justify-center p-2 relative">
+                                <img id="res-ela" src="" class="max-h-64 object-contain rounded-lg shadow-lg">
+                                <div class="absolute bottom-3 right-3 bg-slate-950/80 backdrop-blur-md text-xs px-3 py-1.5 rounded-lg text-slate-200 border border-slate-700 shadow-xl">
+                                    <i class="fa-solid fa-circle-info text-brand-400 mr-1"></i> Parlak alanlar şüphelidir
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ön İşleme Kartı -->
+                        <div class="glass-panel rounded-2xl p-5 md:col-span-2">
+                            <h4 class="font-semibold text-slate-200 mb-4"><i class="fa-solid fa-layer-group mr-2 text-brand-400"></i>Yapay Zekanın Gördüğü (Ön İşleme)</h4>
+                            <div class="flex flex-col md:flex-row gap-6 items-center">
+                                <img id="res-gray" src="" class="w-32 h-32 object-cover rounded-xl border-2 border-slate-700 shadow-lg">
+                                <p class="text-sm text-slate-400 leading-relaxed">
+                                    Sistemimiz fotoğrafı analiz etmeden önce ışık ve renk hilelerinden arındırmak için 
+                                    <span class="text-slate-200 font-medium">tek kanallı (gri tonlamalı)</span> hale getirir ve model standartlarına uygun 
+                                    <span class="text-slate-200 font-medium">224x224 piksel</span> boyutuna ölçeklendirir. ELA (Hata Seviyesi Analizi) bu ham verinin sıkıştırma farklılıklarını ölçerek manipülasyonları yakalar.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Alt Bilgi (Footer) -->
+    <footer class="border-t border-slate-800/50 mt-auto py-8 text-center text-slate-500 text-sm glass-panel">
+        <p>&copy; 2026 DeepScan Analiz. Bu arayüz son teknoloji UI/UX prensipleriyle kodlanmıştır.</p>
+    </footer>
+
+    <!-- JavaScript Etkileşim Kodları -->
+    <script>
+        // Dosya sistemi üzerinden açılmasını engelle (API'nin çalışması için http://127.0.0.1:5000 zorunlu)
+        if (window.location.protocol === 'file:') {
+            document.body.innerHTML = `
+            <div style="background-color:#0f172a; color:white; text-align:center; padding:100px 20px; font-family:'Plus Jakarta Sans', sans-serif; height: 100vh;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size:64px; color:#ef4444; margin-bottom:20px;"></i>
+                <h1 style="font-size:32px; font-weight:bold; margin-bottom:15px;">Bağlantı Hatası: Yanlış Adres</h1>
+                <p style="font-size:18px; color:#94a3b8; max-width:600px; margin:0 auto; line-height:1.6;">
+                    Bu sayfayı HTML dosyasına çift tıklayarak (<code>file:///</code>) açtınız. Güvenlik kuralları gereği yapay zeka analiz motorumuz bu şekilde çalışamaz.
+                </p>
+                <div style="margin-top:40px; padding:20px; background-color:#1e293b; border-radius:10px; display:inline-block; border:1px solid #334155;">
+                    <p style="font-size:16px; margin-bottom:10px; color:#cbd5e1;">Lütfen aşağıdaki adresi kopyalayıp tarayıcınızın adres çubuğuna yapıştırın:</p>
+                    <a href="http://127.0.0.1:5000" style="font-size:24px; color:#2dd4bf; font-weight:bold; text-decoration:none;">http://127.0.0.1:5000</a>
+                </div>
+            </div>`;
+            throw new Error("Yanlış protokol kullanımı. http://127.0.0.1:5000 adresine gidiniz.");
+        }
+
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('drop-zone');
+        const uploadForm = document.getElementById('uploadForm');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const previewContainer = document.getElementById('preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeBtn = document.getElementById('remove-btn');
+        
+        const emptyState = document.getElementById('empty-state');
+        const processingState = document.getElementById('processing-state');
+        const resultsState = document.getElementById('results-state');
+        const processText = document.getElementById('process-text');
+        
+        // Yükleme Animasyon Metinleri
+        const processTexts = [
+            "Piksel verileri inceleniyor...", 
+            "Sıkıştırma algoritmaları çözülüyor...", 
+            "Hata seviyeleri (ELA) hesaplanıyor...", 
+            "Yapay zeka kararı veriliyor..."
+        ];
+
+        // Tarayıcının resmi yeni sekmede açmasını engellemek için tüm sayfa geneli sürükleme ayarları:
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            window.addEventListener(eventName, preventDefaults, false);
+        });
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Gelişmiş Sürükle Bırak (Drag & Drop) Olayları
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('drag-over');
+                dropZone.style.borderColor = '#2dd4bf'; // marka rengimiz
+                dropZone.style.background = 'rgba(45, 212, 191, 0.1)';
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('drag-over');
+                dropZone.style.borderColor = '';
+                dropZone.style.background = '';
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if(files && files.length > 0) {
+                // Sürükle bırak problemini çözmek için DataTransfer nesnesi kullanıyoruz
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(files[0]);
+                fileInput.files = dataTransfer.files;
+                handleFileSelect();
+            }
+        }, false);
+
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // Onay Kutusu Mantığı
+        const confirmCheck = document.getElementById('confirm-check');
+        const confirmBox = document.getElementById('confirm-box');
+        
+        confirmCheck.addEventListener('change', (e) => {
+            analyzeBtn.disabled = !e.target.checked;
+            if(e.target.checked) {
+                analyzeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                analyzeBtn.classList.add('hover:-translate-y-1');
+            } else {
+                analyzeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                analyzeBtn.classList.remove('hover:-translate-y-1');
+            }
+        });
+
+        // Resmi iptal etme
+        removeBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            dropZone.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+            analyzeBtn.classList.add('hidden');
+            confirmBox.classList.add('hidden'); // Onay kutusunu gizle
+            
+            emptyState.classList.remove('hidden');
+            resultsState.classList.add('hidden');
+        });
+
+        function handleFileSelect() {
+            if(fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    dropZone.classList.add('hidden');
+                    previewContainer.classList.remove('hidden');
+                    
+                    // Onay kutusu ve butonu göster
+                    confirmBox.classList.remove('hidden');
+                    analyzeBtn.classList.remove('hidden');
+                    
+                    // Butonu varsayılan olarak kapalı tut
+                    confirmCheck.checked = false;
+                    analyzeBtn.disabled = true;
+                    analyzeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    analyzeBtn.classList.remove('hover:-translate-y-1');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Form Gönderimi (API İstegi)
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if(fileInput.files.length === 0) return;
+
+            // Arayüzü Yükleniyor Durumuna Al
+            uploadForm.classList.add('hidden');
+            processingState.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            resultsState.classList.add('hidden');
+
+            // Metin Değiştirme Animasyonu
+            let textIdx = 0;
+            const textInterval = setInterval(() => {
+                textIdx = (textIdx + 1) % processTexts.length;
+                processText.innerText = processTexts[textIdx];
+            }, 800);
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+
+            try {
+                // Python Backend API Çağrısı
+                const response = await fetch('/analyze', { method: 'POST', body: formData });
+                const data = await response.json();
+                
+                clearInterval(textInterval);
+                
+                if(!response.ok) throw new Error(data.error || 'Sunucu hatası oluştu');
+
+                // Sonuçları Doldur
+                document.getElementById('conf-score').innerText = "%" + data.confidence;
+                document.getElementById('ela-score').innerText = data.ela_score;
+                
+                // Resimleri Yükle (Tarayıcı önbelleğini atlamak için timestamp ekledik)
+                const ts = new Date().getTime();
+                document.getElementById('res-original').src = data.original_url + "?t=" + ts;
+                document.getElementById('res-gray').src = data.gray_url + "?t=" + ts;
+                document.getElementById('res-ela').src = data.ela_url + "?t=" + ts;
+
+                // Durum Rozeti Animasyonu ve Renkleri
+                const statusDiv = document.getElementById('final-status');
+                if(data.status.includes("Sahte")) {
+                    statusDiv.className = "flex justify-center md:justify-start items-center gap-3 px-5 py-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 w-full";
+                    statusDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-3xl"></i><span class="text-xl md:text-2xl font-bold uppercase tracking-wide">Sahte / Manipüle</span>';
+                } else {
+                    statusDiv.className = "flex justify-center md:justify-start items-center gap-3 px-5 py-4 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-400 w-full";
+                    statusDiv.innerHTML = '<i class="fa-solid fa-circle-check text-3xl"></i><span class="text-xl md:text-2xl font-bold uppercase tracking-wide">Orijinal / Gerçek</span>';
+                }
+
+                // Sonuçları Göster
+                processingState.classList.add('hidden');
+                uploadForm.classList.remove('hidden');
+                resultsState.classList.remove('hidden');
+                
+            } catch (err) {
+                clearInterval(textInterval);
+                let hataMesaji = err.message;
+                if (hataMesaji.includes("Failed to fetch")) {
+                    hataMesaji = "Sunucuya bağlanılamadı. Muhtemelen arka planda kod güncellenirken sunucu yeniden başlıyor. Lütfen sayfayı yenileyin (F5) ve tekrar deneyin.";
+                }
+                alert("Hata oluştu: " + hataMesaji);
+                processingState.classList.add('hidden');
+                uploadForm.classList.remove('hidden');
+                emptyState.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
